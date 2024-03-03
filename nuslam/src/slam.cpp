@@ -355,8 +355,6 @@ private:
       }
 
       arma::mat temp_mat = ekf.sigma_hat;
-      uint cols = temp_mat.n_cols;
-      uint rows = temp_mat.n_rows;
 
       odom_log_file << timestamp << ",";
       odom_log_file << pose_now.theta << ",";
