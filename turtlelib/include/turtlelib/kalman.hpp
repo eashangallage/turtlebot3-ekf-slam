@@ -77,7 +77,6 @@ namespace turtlelib
 
     private:
         arma::mat Xi_hat;    // Full state prediction [pose, map state]
-        arma::mat sigma_hat; // Covariance matrix
         arma::mat Q_bar;     // Process noise: Measure of how accurate the model is
         arma::mat R_bar;     // Sensor noise: Measure of how accurate the sensors are
         uint64_t n = 0;      // Number of landmarks
@@ -131,6 +130,8 @@ namespace turtlelib
         /// @param Q process noise gain
         /// @param R measurment noise gain
         KalmanFilter(double Q, double R);
+
+        arma::mat sigma_hat; // Covariance matrix
 
         /// @brief Runs one iteration of the extended Kalman filtera
         /// with the given twist and landmark measurements. The pose
