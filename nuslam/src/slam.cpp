@@ -67,6 +67,7 @@ static constexpr bool SAVE_TO_CSV = true;
 // for logging slam data to a csv file
 std::ofstream slam_log_file;
 std::ofstream odom_log_file;
+std::ofstream cov_log_file;
 auto t0 = std::chrono::system_clock::now();
 
 // throttle the rate at which path messages are published
@@ -78,7 +79,7 @@ class Slam : public rclcpp::Node
 {
 public:
   Slam()
-  : Node("slam")
+      : Node("slam")
   {
 
     // Declare parameters to the node
@@ -100,15 +101,18 @@ public:
     wheel_right = get_parameter("wheel_right").get_value<std::string>();
 
     // throw runtime error if required parameters are undefined
-    if (body_id.empty()) {
+    if (body_id.empty())
+    {
       RCLCPP_ERROR_STREAM(get_logger(), "body_id parameter not specified");
       throw std::runtime_error("body_id parameter not specified");
     }
-    if (wheel_right.empty()) {
+    if (wheel_right.empty())
+    {
       RCLCPP_ERROR_STREAM(get_logger(), "wheel_right parameter not specified");
       throw std::runtime_error("wheel_right parameter not specified");
     }
-    if (wheel_left.empty()) {
+    if (wheel_left.empty())
+    {
       RCLCPP_ERROR_STREAM(get_logger(), "left_right parameter not specified");
       throw std::runtime_error("left_right parameter not specified");
     }
@@ -124,33 +128,34 @@ public:
 
     /// @brief Publishses the SLAM landmarks
     slam_marker_arr_pub = create_publisher<visualization_msgs::msg::MarkerArray>(
-      "/slam/landmarks", 10);
+        "/slam/landmarks", 10);
 
     /// @brief Subscriber to joint_states topic
     joint_states_sub = create_subscription<sensor_msgs::msg::JointState>(
-      "/blue/joint_states", 10,
-      std::bind(&Slam::joint_states_callback, this, _1));
+        "/blue/joint_states", 10,
+        std::bind(&Slam::joint_states_callback, this, _1));
 
     /// @brief subscription to the detected landmarks from circle fitting
     /// which is based on data from the lidar scanner (or fake lidar scanner)
-    if (not KNOWN_ASSOCIATION) {
+    if (not KNOWN_ASSOCIATION)
+    {
       detected_landmarks_sub = create_subscription<nuslam::msg::PointArray>(
-        "/detected_landmarks", 10, std::bind(&Slam::detected_landmarks_callback, this, _1)
-      );
+          "/detected_landmarks", 10, std::bind(&Slam::detected_landmarks_callback, this, _1));
     }
 
     /// @brief subscription to fake sensor for use with SLAM
     /// with known data association
-    if (KNOWN_ASSOCIATION) {
+    if (KNOWN_ASSOCIATION)
+    {
       RCLCPP_INFO_STREAM(get_logger(), "Known data association, using fake sensor");
       fake_sensor_sub = create_subscription<visualization_msgs::msg::MarkerArray>(
-        "/fake_sensor", 10, std::bind(&Slam::fake_sensor_callback, this, _1));
+          "/fake_sensor", 10, std::bind(&Slam::fake_sensor_callback, this, _1));
     }
 
     /// @brief initial pose service that sets the initial pose of the robot
     _init_pose_service = this->create_service<nuslam::srv::InitialPose>(
-      "odometry/initial_pose",
-      std::bind(&Slam::init_pose_callback, this, _1, _2));
+        "odometry/initial_pose",
+        std::bind(&Slam::init_pose_callback, this, _1, _2));
 
     /// @brief transform broadcaster used to publish transforms on the /tf topic
     tf_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
@@ -160,8 +165,8 @@ public:
 
     /// \brief Timer (frequency defined by node parameter)
     _timer = create_wall_timer(
-      std::chrono::milliseconds((int)(1000 / RATE)),
-      std::bind(&Slam::timer_callback, this));
+        std::chrono::milliseconds((int)(1000 / RATE)),
+        std::bind(&Slam::timer_callback, this));
 
     // world -> map (static)
     world_map_tf.header.stamp = get_clock()->now();
@@ -255,8 +260,8 @@ private:
   /// @param request
   /// @param
   void init_pose_callback(
-    const std::shared_ptr<nuslam::srv::InitialPose::Request> request,
-    std::shared_ptr<nuslam::srv::InitialPose::Response>)
+      const std::shared_ptr<nuslam::srv::InitialPose::Request> request,
+      std::shared_ptr<nuslam::srv::InitialPose::Response>)
   {
     pose_now.x = request->x;
     pose_now.y = request->y;
@@ -280,13 +285,14 @@ private:
 
   /// @brief callback function for detected landmark centers
   /// from circle fitting/classification published by landmarks node
-  void detected_landmarks_callback(const nuslam::msg::PointArray & point_arr)
+  void detected_landmarks_callback(const nuslam::msg::PointArray &point_arr)
   {
     // by not providing an id for the landmark, the EKF assumes an unknown data association
     std::vector<turtlelib::LandmarkMeasurement> measurements;
-    for (const auto & landmark_point : point_arr.points) {
+    for (const auto &landmark_point : point_arr.points)
+    {
       auto m = turtlelib::LandmarkMeasurement::from_cartesian(
-        landmark_point.x, landmark_point.y);
+          landmark_point.x, landmark_point.y);
       measurements.push_back(m); // vector of 1 measurement...should be reworked
     }
 
@@ -305,14 +311,15 @@ private:
   }
 
   /// @brief callback for fake sensors for SLAM with known data association
-  void fake_sensor_callback(const visualization_msgs::msg::MarkerArray & marker_arr)
+  void fake_sensor_callback(const visualization_msgs::msg::MarkerArray &marker_arr)
   {
 
     fake_sensor_flag = true;
 
     // store markers in a vector of turtlelib::LandmarkMeasurement's
     // passing a marker_id signifies to the EKF that the data association is known
-    for (size_t i = 0; i < marker_arr.markers.size(); i++) {
+    for (size_t i = 0; i < marker_arr.markers.size(); i++)
+    {
       const double x = marker_arr.markers.at(i).pose.position.x;
       const double y = marker_arr.markers.at(i).pose.position.y;
       const unsigned int marker_id = marker_arr.markers.at(i).id;
@@ -328,24 +335,47 @@ private:
     slam_state_estimate = ekf.state_prediction();
 
     // Saves the state estimate from the EKF to a csv file
-    if (SAVE_TO_CSV) {
+    if (SAVE_TO_CSV)
+    {
       auto t1 = std::chrono::system_clock::now();
       std::chrono::duration<double> diff = t1 - t0;
       double timestamp = diff.count();
       slam_log_file << timestamp << ",";
 
-      for (size_t i = 0; i <= slam_state_estimate.n_rows - 1; i++) {
-        if (i != slam_state_estimate.n_rows - 1) {
+      for (size_t i = 0; i <= slam_state_estimate.n_rows - 1; i++)
+      {
+        if (i != slam_state_estimate.n_rows - 1)
+        {
           slam_log_file << slam_state_estimate(i, 0) << ",";
-        } else {
+        }
+        else
+        {
           slam_log_file << slam_state_estimate(i, 0) << "\n";
         }
       }
+
+      arma::mat temp_mat = ekf.sigma_hat;
+      uint cols = temp_mat.n_cols;
+      uint rows = temp_mat.n_rows;
 
       odom_log_file << timestamp << ",";
       odom_log_file << pose_now.theta << ",";
       odom_log_file << pose_now.x << ",";
       odom_log_file << pose_now.y << "\n";
+
+      for (arma::uword i = 0; i < 3; ++i)
+      {
+        // Iterate over each column
+        for (arma::uword j = 0; j < 2; ++j)
+        {
+          // Print the element at position (i, j)s
+        cov_log_file << temp_mat(i,j) << ",";
+        }
+        // Move to the next line after printing each row
+        std::cout << std::endl;
+        cov_log_file << temp_mat(i,2) << "\n";
+      }
+      cov_log_file << "\n";
     }
   }
 
@@ -355,7 +385,8 @@ private:
     slam_marker_arr.markers.clear();
 
     visualization_msgs::msg::Marker slam_marker_msg;
-    for (size_t i = 0; i <= slam_map_estimate.n_rows - 2; i += 2) {
+    for (size_t i = 0; i <= slam_map_estimate.n_rows - 2; i += 2)
+    {
       // Landmarks in the map frame
       const double x_m = slam_map_estimate(i, 0);
       const double y_m = slam_map_estimate(i + 1, 0);
@@ -389,7 +420,7 @@ private:
   /// as well as odometry information on the odom topic
   /// @param path_flag flag for whether or not to actually publish the path
   /// which is useful for decreasing path publishing frequency for performance
-  void odom_to_blue(const bool & path_flag)
+  void odom_to_blue(const bool &path_flag)
   {
     // Define quaternion for current rotation
     tf2::Quaternion q_ob;
@@ -420,7 +451,8 @@ private:
     odom_blue_tf.transform.rotation.z = q_ob.z();
     odom_blue_tf.transform.rotation.w = q_ob.w();
 
-    if (path_flag) {
+    if (path_flag)
+    {
       count = 0;
       geometry_msgs::msg::PoseStamped temp_pose;
       temp_pose.header.stamp = get_clock()->now();
@@ -451,7 +483,7 @@ private:
   /// @brief Publishes the map -> odom_slam tf and the path of the SLAM (green) robot
   /// @param path_flag flag for whether or not to actually publish the path
   /// which is useful for decreasing path publishing frequency for performance
-  void map_to_slam_odom(const bool & path_flag)
+  void map_to_slam_odom(const bool &path_flag)
   {
     // Compute transforms between frames
     const turtlelib::Vector2D vec_mb{slam_pose_estimate(1, 0), slam_pose_estimate(2, 0)};
@@ -474,7 +506,8 @@ private:
     map_odom_tf.transform.rotation.z = q_mo.z();
     map_odom_tf.transform.rotation.w = q_mo.w();
 
-    if (path_flag) {
+    if (path_flag)
+    {
       tf2::Quaternion q_mb;
       q_mb.setRPY(0.0, 0.0, T_MB.rotation());
 
@@ -497,10 +530,13 @@ private:
   void timer_callback()
   {
     // throttle the path publishing for performance
-    if (count > PATH_PUB_RATE) {
+    if (count > PATH_PUB_RATE)
+    {
       path_flag = true;
       count = 0;
-    } else {
+    }
+    else
+    {
       path_flag = false;
       count++;
     }
@@ -518,7 +554,8 @@ private:
     // publish odometry msg
     odom_pub->publish(odom_msg);
 
-    if (fake_sensor_flag) {
+    if (fake_sensor_flag)
+    {
       fake_sensor_flag = false;
 
       // publish marker messages for map landmarks based on map_estimate
@@ -530,20 +567,23 @@ private:
 };
 
 /// @brief the main function to run the odometry node
-int main(int argc, char * argv[])
+int main(int argc, char *argv[])
 {
-  if (SAVE_TO_CSV) {
+  if (SAVE_TO_CSV)
+  {
     t0 = std::chrono::system_clock::now();
     slam_log_file.open("slam_log.csv");
     odom_log_file.open("odom_log.csv");
+    cov_log_file.open("cov_log.csv");
   }
 
   rclcpp::init(argc, argv);
   rclcpp::spin(std::make_shared<Slam>());
   rclcpp::shutdown();
 
-  slam_log_file.close();   // may be problamatic in the event that the node crashes and we don't get here?
+  slam_log_file.close(); // may be problamatic in the event that the node crashes and we don't get here?
   odom_log_file.close();
+  cov_log_file.close();
 
   return 0;
 }
