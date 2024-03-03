@@ -354,12 +354,12 @@ private:
         }
       }
 
-      arma::mat temp_mat = ekf.sigma_hat;
+      arma::mat cov_mat = ekf.sigma_hat;
 
       odom_log_file << timestamp << ",";
-      odom_log_file << pose_now.theta << ",";
       odom_log_file << pose_now.x << ",";
-      odom_log_file << pose_now.y << "\n";
+      odom_log_file << pose_now.y << ",";
+      odom_log_file << pose_now.theta << "\n";
 
       for (arma::uword i = 0; i < 3; ++i)
       {
@@ -367,11 +367,11 @@ private:
         for (arma::uword j = 0; j < 2; ++j)
         {
           // Print the element at position (i, j)s
-        cov_log_file << temp_mat(i,j) << ",";
+        cov_log_file << cov_mat(i,j) << ",";
         }
         // Move to the next line after printing each row
         std::cout << std::endl;
-        cov_log_file << temp_mat(i,2) << "\n";
+        cov_log_file << cov_mat(i,2) << "\n";
       }
       cov_log_file << "\n";
     }
