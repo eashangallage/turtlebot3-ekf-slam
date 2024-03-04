@@ -68,6 +68,7 @@ static constexpr bool SAVE_TO_CSV = true;
 std::ofstream slam_log_file;
 std::ofstream odom_log_file;
 std::ofstream cov_log_file;
+std::ofstream plot_log_file;
 auto t0 = std::chrono::system_clock::now();
 
 // throttle the rate at which path messages are published
@@ -361,6 +362,8 @@ private:
       odom_log_file << pose_now.y << ",";
       odom_log_file << pose_now.theta << "\n";
 
+      cov_log_file << timestamp << "\n";
+
       for (arma::uword i = 0; i < 3; ++i)
       {
         // Iterate over each column
@@ -370,10 +373,23 @@ private:
         cov_log_file << cov_mat(i,j) << ",";
         }
         // Move to the next line after printing each row
-        std::cout << std::endl;
         cov_log_file << cov_mat(i,2) << "\n";
       }
       cov_log_file << "\n";
+
+      plot_log_file << timestamp << ","; // time
+      plot_log_file << pose_now.x << ","; // x mean
+      plot_log_file << pose_now.y << ","; // y mean
+      plot_log_file << cov_mat(0,0) << ","; // 
+      plot_log_file << cov_mat(0,1) << ","; // 
+      plot_log_file << cov_mat(0,2) << ","; // 
+      plot_log_file << cov_mat(1,0) << ",";
+      plot_log_file << cov_mat(1,1) << ",";
+      plot_log_file << cov_mat(1,2) << ",";
+      plot_log_file << cov_mat(2,0) << ",";
+      plot_log_file << cov_mat(2,1) << ",";
+      plot_log_file << cov_mat(2,2) << ",";
+      plot_log_file << pose_now.theta << "\n";
     }
   }
 
@@ -573,6 +589,7 @@ int main(int argc, char *argv[])
     slam_log_file.open("slam_log.csv");
     odom_log_file.open("odom_log.csv");
     cov_log_file.open("cov_log.csv");
+    plot_log_file.open("plot_log.csv");
   }
 
   rclcpp::init(argc, argv);
@@ -582,6 +599,7 @@ int main(int argc, char *argv[])
   slam_log_file.close(); // may be problamatic in the event that the node crashes and we don't get here?
   odom_log_file.close();
   cov_log_file.close();
+  plot_log_file.close();
 
   return 0;
 }
